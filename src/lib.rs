@@ -7,6 +7,8 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 use std::os::raw::c_void;
 use std::ptr;
 use std::marker::PhantomData;
+use std::collections::HashMap;
+use std::str;
 
 pub struct HtmlDocument {
     document: *mut lxb_html_document_t,
@@ -119,14 +121,78 @@ impl<'a> Node<'a> {
 
             let text_slice = std::slice::from_raw_parts(text_ptr, len);
 
-            // 1. This is better for security
-            // let text_str = String::from_utf8_lossy(text_slice).into_owned();
-
-            // 2. This is faster
             let text_str: &str = str::from_utf8_unchecked(text_slice);
 
             Some(text_str)
         }
+    }
+
+    // To get the innerHtml you are forced to serialise the tree
+    pub fn inner_html(&self) -> String {
+        unsafe {
+            let mut result = String::new();
+            let mut child = (*self.node).first_child;
+
+            while !child.is_null() {
+                lxb_html_serialize_tree_cb(
+                    child,
+                    Some(serialize_callback),
+                    &mut result as *mut String as *mut c_void,
+                );
+                child = (*child).next;
+            }
+            result
+        }
+    }
+
+    pub fn attributes(&self) -> HashMap<&str, &str> {
+        let mut attrs = HashMap::new();
+        unsafe {
+            if (*self.node).type_ != lxb_dom_node_type_t_LXB_DOM_NODE_TYPE_ELEMENT {
+                return attrs;
+            }
+
+            let element = self.node as *mut lxb_dom_element_t;
+            let mut attr = lxb_dom_element_first_attribute_noi(element);
+
+            while !attr.is_null() {
+                let mut name_len: usize = 0;
+                let name_ptr = lxb_dom_attr_qualified_name(attr, &mut name_len);
+
+                let mut value_len: usize = 0;
+                let value_ptr = lxb_dom_attr_value_noi(attr, &mut value_len);
+
+                if !name_ptr.is_null() && !value_ptr.is_null() {
+                    let name_slice = std::slice::from_raw_parts(name_ptr, name_len);
+                    let value_slice = std::slice::from_raw_parts(value_ptr, value_len);
+
+                    let name: &str = str::from_utf8_unchecked(name_slice);
+                    let value: &str = str::from_utf8_unchecked(value_slice);
+
+                    attrs.insert(name, value);
+                }
+
+                attr = lxb_dom_element_next_attribute_noi(attr);
+            }
+        }
+        attrs
+    }
+}
+
+const LXB_STATUS_OK: lxb_status_t = 0;
+
+unsafe extern "C" fn serialize_callback(
+    data: *const lxb_char_t,
+    len: usize,
+    ctx: *mut c_void,
+) -> lxb_status_t {
+    unsafe {
+        let result = &mut *(ctx as *mut String);
+        let slice = std::slice::from_raw_parts(data, len);
+        if let Ok(s) = str::from_utf8(slice) {
+            result.push_str(s);
+        }
+        LXB_STATUS_OK
     }
 }
 
@@ -145,7 +211,7 @@ unsafe extern "C" fn collect_nodes_callback(
         nodes.push(node_struct);
     }
     
-    0 // LXB_STATUS_OK
+    LXB_STATUS_OK
 }
 
 #[cfg(test)]
@@ -196,5 +262,31 @@ mod tests {
         let mut iter = nodes.iter();
         assert_eq!(iter.next().unwrap().text_content(), Some("First paragraph"));
         assert_eq!(iter.next().unwrap().text_content(), Some("Second paragraph"));
+    }
+
+    #[test]
+    fn test_inner_html() {
+        let html = r#"<div id="parent"><p>Child 1</p><span>Child 2</span></div>"#;
+        let doc = HtmlDocument::new(html).expect("Failed to parse HTML");
+        let nodes = doc.select("#parent");
+        
+        assert_eq!(nodes.len(), 1);
+        let inner = nodes[0].inner_html();
+        assert_eq!(inner, "<p>Child 1</p><span>Child 2</span>");
+    }
+
+    #[test]
+    fn test_attributes() {
+        let html = r#"<div id="my-div" class="container" data-val="123">Content</div>"#;
+        let doc = HtmlDocument::new(html).expect("Failed to parse HTML");
+        let nodes = doc.select("div");
+        
+        assert_eq!(nodes.len(), 1);
+        let attrs = nodes[0].attributes();
+        
+        assert_eq!(attrs.len(), 3);
+        assert_eq!(attrs["id"], "my-div");
+        assert_eq!(attrs["class"], "container");
+        assert_eq!(attrs["data-val"], "123");
     }
 }
