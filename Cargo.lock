@@ -85,11 +85,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "lexbor_rust"
-version = "0.1.0"
+name = "lexbor_css"
+version = "0.0.1"
 dependencies = [
  "bindgen",
- "libc",
 ]
 
 [[package]]
