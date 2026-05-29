@@ -3,5 +3,9 @@ name = "lexbor_css"
 version = "0.0.1"
 edition = "2024"
 
+[features]
+default = []
+vendor = []
+
 [build-dependencies]
 bindgen = "0.72"

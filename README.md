@@ -6,6 +6,17 @@ Unsafe Rust bindings for the [lexbor](https://github.com/lexbor/lexbor) HTML par
 
 You must have the `lexbor` library installed on your system.
 
+Alternatively, enable the `vendor` feature to have the build script clone the
+latest Lexbor sources from GitHub and build them automatically:
+
+```toml
+[dependencies]
+lexbor_css = { version = "0.0.1", features = ["vendor"] }
+```
+
+The vendored build requires `git`, `cmake`, a C compiler, and network access
+when Cargo first builds the crate.
+
 ## Usage
 
 ### Rust Example
