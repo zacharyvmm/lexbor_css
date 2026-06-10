@@ -11,9 +11,13 @@ use crate::error::Error;
 use crate::ffi::{
     lxb_css_parser_create, lxb_css_parser_destroy, lxb_css_parser_init, lxb_css_parser_t,
     lxb_css_selectors_parse, lxb_html_document_create, lxb_html_document_destroy,
-    lxb_html_document_parse, lxb_html_document_parse_fragment, lxb_html_document_t,
-    lxb_selectors_create, lxb_selectors_destroy, lxb_selectors_find, lxb_selectors_init,
-    lxb_selectors_t, lexbor_status_t_LXB_STATUS_OK,
+    lxb_html_document_parse, lxb_html_document_t,
+    lxb_html_parse_fragment_by_tag_id, lxb_html_parser_create, lxb_html_parser_destroy,
+    lxb_html_parser_init, lxb_html_parser_t,
+    lxb_ns_id_enum_t_LXB_NS_HTML, lxb_selectors_create, lxb_selectors_destroy,
+    lxb_selectors_find, lxb_selectors_init, lxb_selectors_opt_set_noi, lxb_selectors_opt_t,
+    lxb_selectors_opt_t_LXB_SELECTORS_OPT_MATCH_ROOT, lxb_selectors_t,
+    lxb_tag_id_by_name_noi, lxb_tag_id_enum_t_LXB_TAG__UNDEF, lexbor_status_t_LXB_STATUS_OK,
 };
 use crate::node::Node;
 
@@ -36,7 +40,10 @@ pub struct HtmlDocument {
 }
 
 impl HtmlDocument {
-    /// Parse an HTML string and create a new document.
+    /// Parse an HTML string as a full document.
+    ///
+    /// Missing `<html>`, `<head>`, and `<body>` tags are auto-inserted per
+    /// the HTML5 parsing spec.
     pub fn parse(html: &str) -> Result<Self, Error> {
         unsafe {
             let document = lxb_html_document_create();
@@ -54,6 +61,15 @@ impl HtmlDocument {
 
             Self::init_selectors(document)
         }
+    }
+
+    /// Parse an HTML fragment.
+    ///
+    /// **Experimental.** This method is not yet stable and may crash.
+    /// Use [`parse`](Self::parse) for full documents instead.
+    #[doc(hidden)]
+    pub fn parse_fragment(_html: &str, _context_tag: &str) -> Result<Self, Error> {
+        Err(Error::ParseFragment("fragment parsing not yet stable".into()))
     }
 
     /// Internal: create CSS parser and selectors engine.
@@ -228,6 +244,28 @@ impl HtmlDocument {
         for tag in tags {
             for node in self.tags(tag) {
                 let _ = node.decompose();
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Tag / namespace lookup
+    // -----------------------------------------------------------------------
+
+    /// Resolve a tag name to its internal lexbor tag ID.
+    ///
+    /// Returns `None` if the tag name is unknown.
+    pub fn resolve_tag_id(&self, name: &str) -> Option<usize> {
+        unsafe {
+            let tag_id = lxb_tag_id_by_name_noi(
+                (*self.document).dom_document.tags,
+                name.as_ptr() as *const crate::ffi::lxb_char_t,
+                name.len(),
+            );
+            if tag_id as u32 == lxb_tag_id_enum_t_LXB_TAG__UNDEF {
+                None
+            } else {
+                Some(tag_id as usize)
             }
         }
     }

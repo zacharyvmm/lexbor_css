@@ -58,11 +58,15 @@ mod ffi {
 }
 
 mod callbacks;
+mod collection;
+mod css;
 mod document;
 mod error;
 pub mod node;
 mod selector;
 
+pub use collection::Collection;
+pub use css::StyleSheet;
 pub use document::HtmlDocument;
 pub use error::Error;
 pub use node::{Node, SerializeOpts, TextOpts};

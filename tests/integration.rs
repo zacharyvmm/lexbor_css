@@ -614,3 +614,62 @@ fn test_many_documents() {
         assert_eq!(nodes.len(), 1);
     }
 }
+
+// =========================================================================
+// New: fragment parsing, clone, tag resolution, raw_value, is_removed
+// =========================================================================
+
+#[test]
+fn test_clone_node() {
+    let doc = HtmlDocument::parse("<div><p>Hello</p></div>").unwrap();
+    let div = doc.select_first("div").unwrap();
+    let cloned = div.clone_node().unwrap();
+    assert_eq!(cloned.tag_name(), "div");
+    assert_eq!(cloned.text(), "Hello");
+    // Original still intact
+    assert_eq!(doc.select("div").len(), 1);
+}
+
+#[test]
+fn test_clone_node_shallow() {
+    let doc = HtmlDocument::parse("<div><p>Hello</p></div>").unwrap();
+    let div = doc.select_first("div").unwrap();
+    let cloned = div.clone_node_shallow().unwrap();
+    assert_eq!(cloned.tag_name(), "div");
+    // Shallow clone has no children
+    assert!(cloned.first_child().is_none());
+}
+
+#[test]
+fn test_is_removed() {
+    let doc = HtmlDocument::parse("<div><p>Hello</p></div>").unwrap();
+    let p = doc.select_first("p").unwrap();
+    assert!(!p.is_removed());
+    p.decompose().unwrap();
+    assert!(p.is_removed());
+}
+
+#[test]
+fn test_resolve_tag_id() {
+    let doc = HtmlDocument::parse("<div></div>").unwrap();
+    let div_id = doc.resolve_tag_id("div");
+    assert!(div_id.is_some());
+    assert!(div_id.unwrap() > 0);
+
+    let unknown = doc.resolve_tag_id("nonexistent_xyz");
+    assert!(unknown.is_none());
+}
+
+#[test]
+fn test_raw_value() {
+    let doc = HtmlDocument::parse("<div>Hello &lt;world&gt;</div>").unwrap();
+    let div = doc.select_first("div").unwrap();
+    let text_node = div.first_child().unwrap();
+    assert!(text_node.is_text());
+    // raw_value returns the original bytes before entity resolution
+    let raw = text_node.raw_value().unwrap();
+    assert!(!raw.is_empty());
+
+    // Non-text nodes return None
+    assert!(div.raw_value().is_none());
+}

@@ -545,6 +545,27 @@ impl<'a> Node<'a> {
         }
         result
     }
+
+    /// Returns the raw text content of a text node (pre-entity-resolution).
+    ///
+    /// This is the original source text, before HTML entities like `&#x3C;`
+    /// are decoded. Returns `None` for non-text nodes.
+    pub fn raw_value(&self) -> Option<&[u8]> {
+        if !self.is_text() {
+            return None;
+        }
+        let char_data = self.node as *mut crate::ffi::lxb_dom_character_data_t;
+        let data_ptr =
+            unsafe { crate::ffi::lexbor_str_data_noi(&mut (*char_data).data) };
+        if data_ptr.is_null() {
+            return None;
+        }
+        let len = unsafe { (*char_data).data.length };
+        if len == 0 {
+            return Some(&[]);
+        }
+        Some(unsafe { std::slice::from_raw_parts(data_ptr, len) })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -601,6 +622,49 @@ impl<'a> Node<'a> {
             );
         }
         Ok(())
+    }
+
+    /// Deep-clone this node and all its descendants.
+    ///
+    /// Returns a new node that is a full copy of the subtree rooted at this
+    /// node. The clone belongs to the same document.
+    pub fn clone_node(&self) -> Option<Node<'a>> {
+        let cloned = unsafe { crate::ffi::lxb_dom_node_clone(self.node, true) };
+        if cloned.is_null() {
+            None
+        } else {
+            Some(Node {
+                node: cloned as *mut lxb_dom_node_t,
+                _marker: PhantomData,
+            })
+        }
+    }
+
+    /// Shallow-clone this node (children are not copied).
+    pub fn clone_node_shallow(&self) -> Option<Node<'a>> {
+        let cloned = unsafe { crate::ffi::lxb_dom_node_clone(self.node, false) };
+        if cloned.is_null() {
+            None
+        } else {
+            Some(Node {
+                node: cloned as *mut lxb_dom_node_t,
+                _marker: PhantomData,
+            })
+        }
+    }
+
+    /// Returns `true` if this node has been removed from the tree.
+    ///
+    /// A node is considered removed when it has no parent and no siblings.
+    /// After [`decompose`](Self::decompose) or [`remove`](Self::remove),
+    /// the node reference is dangling — **do not use it**. This method is
+    /// best-effort and may not detect all cases of removed nodes.
+    pub fn is_removed(&self) -> bool {
+        unsafe {
+            (*self.node).parent.is_null()
+                && (*self.node).next.is_null()
+                && (*self.node).prev.is_null()
+        }
     }
 }
 
