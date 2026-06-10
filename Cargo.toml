@@ -2,6 +2,11 @@
 name = "lexbor_css"
 version = "0.0.1"
 edition = "2024"
+description = "Safe, fast Rust CSS selection library wrapping lexbor (like selectolax)"
+license = "MIT"
+repository = "https://github.com/nicbarker/lexbor-rust-css-selection"
+keywords = ["html", "css", "selector", "parser", "lexbor"]
+categories = ["web-programming", "parsing"]
 
 [features]
 default = []
@@ -9,3 +14,17 @@ vendor = []
 
 [build-dependencies]
 bindgen = "0.72"
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.6"
+
+[[bench]]
+name = "select_bench"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
