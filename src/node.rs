@@ -580,22 +580,6 @@ impl<'a> Node<'a> {
         self.decompose()
     }
 
-    /// Unwrap this node: move its children to the parent, then remove this node.
-    pub fn unwrap(&self) -> Result<(), Error> {
-        if self.is_document() {
-            return Err(Error::RootNode);
-        }
-        // Collect all children first (avoid modifying while iterating)
-        let children: Vec<Node<'a>> = self.children().collect();
-        for child in &children {
-            unsafe {
-                crate::ffi::lxb_dom_node_remove(child.node);
-                crate::ffi::lxb_dom_node_insert_before_wo_events(child.node, self.node);
-            }
-        }
-        self.decompose()
-    }
-
     /// Append a text node as a child of this node.
     ///
     /// Uses `lxb_dom_node_append_child` which properly integrates the node
@@ -617,55 +601,6 @@ impl<'a> Node<'a> {
             );
         }
         Ok(())
-    }
-
-    /// Merge adjacent text nodes among this node's descendants.
-    /// Walks the subtree merging adjacent text nodes into a single node.
-    pub fn merge_text_nodes(&self) {
-        unsafe fn is_text(node: *mut lxb_dom_node_t) -> bool {
-            !node.is_null()
-                && unsafe { (*node).type_ == lxb_dom_node_type_t_LXB_DOM_NODE_TYPE_TEXT }
-        }
-
-        let mut child_ptr = unsafe { (*self.node).first_child };
-        while !child_ptr.is_null() {
-            if unsafe { is_text(child_ptr) } {
-                let next_ptr = unsafe { (*child_ptr).next };
-                if unsafe { is_text(next_ptr) } {
-                    // Get text of next, append to current, remove next
-                    let mut next_len: usize = 0;
-                    let next_text =
-                        unsafe { crate::ffi::lxb_dom_node_text_content(next_ptr, &mut next_len) };
-                    if !next_text.is_null() && next_len > 0 {
-                        let mut cur_len: usize = 0;
-                        let cur_text =
-                            unsafe { crate::ffi::lxb_dom_node_text_content(child_ptr, &mut cur_len) };
-                        let total = cur_len + next_len;
-                        let mut merged: Vec<u8> = Vec::with_capacity(total);
-                        if !cur_text.is_null() && cur_len > 0 {
-                            merged.extend_from_slice(unsafe {
-                                std::slice::from_raw_parts(cur_text, cur_len)
-                            });
-                        }
-                        merged.extend_from_slice(unsafe {
-                            std::slice::from_raw_parts(next_text, next_len)
-                        });
-                        unsafe {
-                            crate::ffi::lxb_dom_node_text_content_set(
-                                child_ptr,
-                                merged.as_ptr() as *const lxb_char_t,
-                                merged.len(),
-                            );
-                        }
-                    }
-                    unsafe {
-                        crate::ffi::lxb_dom_node_remove(next_ptr);
-                    }
-                    continue;
-                }
-            }
-            child_ptr = unsafe { (*child_ptr).next };
-        }
     }
 }
 

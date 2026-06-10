@@ -232,21 +232,6 @@ impl HtmlDocument {
         }
     }
 
-    /// Unwrap all elements with the given tag names (keep children, remove the tag).
-    pub fn unwrap_tags(&self, tags: &[&str]) {
-        for tag in tags {
-            for node in self.tags(tag) {
-                let _ = node.unwrap();
-            }
-        }
-    }
-
-    /// Merge adjacent text nodes throughout the document.
-    pub fn merge_text_nodes(&self) {
-        let root = self.root();
-        root.merge_text_nodes();
-    }
-
     // -----------------------------------------------------------------------
     // Pre-compiled selector factory
     // -----------------------------------------------------------------------
