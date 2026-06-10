@@ -28,7 +28,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lexbor_css = { git = "https://github.com/zacharyvmm/lexbor-rust-css-selection", features = ["vendor"] }
+lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css", features = ["vendor"] }
 ```
 
 The `vendor` feature clones and builds lexbor from source automatically.
@@ -38,7 +38,7 @@ Alternatively, install lexbor system-wide and omit the `vendor` feature:
 
 ```toml
 [dependencies]
-lexbor_css = { git = "https://github.com/zacharyvmm/lexbor-rust-css-selection" }
+lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css" }
 ```
 
 ### Parsing and Selection

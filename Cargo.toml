@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2024"
 description = "Safe, fast Rust CSS selection library wrapping lexbor (like selectolax)"
 license = "MIT"
-repository = "https://github.com/nicbarker/lexbor-rust-css-selection"
+repository = "https://github.com/zacharyvmm/lexbor_css"
 keywords = ["html", "css", "selector", "parser", "lexbor"]
 categories = ["web-programming", "parsing"]
 
