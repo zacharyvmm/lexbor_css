@@ -28,17 +28,17 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css", features = ["vendor"] }
+lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css" }
 ```
 
-The `vendor` feature clones and builds lexbor from source automatically.
-Requires `git`, `cmake`, and a C compiler.
+The `vendor` feature is enabled by default and clones and builds lexbor from
+source automatically. Requires `git`, `cmake`, and a C compiler.
 
-Alternatively, install lexbor system-wide and omit the `vendor` feature:
+Alternatively, install lexbor system-wide and disable the default features:
 
 ```toml
 [dependencies]
-lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css" }
+lexbor_css = { git = "https://github.com/zacharyvmm/lexbor_css", default-features = false }
 ```
 
 ### Parsing and Selection

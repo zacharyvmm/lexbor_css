@@ -9,7 +9,9 @@ keywords = ["html", "css", "selector", "parser", "lexbor"]
 categories = ["web-programming", "parsing"]
 
 [features]
-default = []
+# Build Lexbor from source by default so a plain `cargo build` does not
+# require a separately installed system library.
+default = ["vendor"]
 vendor = []
 
 [build-dependencies]

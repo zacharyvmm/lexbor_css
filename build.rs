@@ -1,4 +1,5 @@
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -16,6 +17,13 @@ fn main() {
         println!("cargo:rustc-link-lib=lexbor");
     }
 
+    // libclang does not always discover GCC's builtin include directory (for
+    // example, when libclang is installed without the clang driver). Lexbor's
+    // headers eventually include standard C headers such as <stddef.h>, so
+    // pass the compiler's include directory to bindgen explicitly when it is
+    // available.
+    builder = add_compiler_include_dir(builder);
+
     let bindings = builder
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
@@ -27,19 +35,34 @@ fn main() {
         .expect("Couldn't write bindings!");
 }
 
+fn add_compiler_include_dir(builder: bindgen::Builder) -> bindgen::Builder {
+    println!("cargo:rerun-if-env-changed=CC");
+
+    let compiler = env::var_os("CC").unwrap_or_else(|| OsString::from("cc"));
+    let output = match Command::new(&compiler)
+        .arg("-print-file-name=include")
+        .output()
+    {
+        Ok(output) if output.status.success() => output,
+        _ => return builder,
+    };
+
+    let include_dir = String::from_utf8_lossy(&output.stdout);
+    let include_dir = Path::new(include_dir.trim());
+    if include_dir.is_dir() {
+        builder.clang_arg(format!("-I{}", include_dir.display()))
+    } else {
+        builder
+    }
+}
+
 fn build_vendored_lexbor() -> PathBuf {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     let source_dir = out_dir.join("lexbor-src");
     let build_dir = out_dir.join("lexbor-build");
     let install_dir = out_dir.join("lexbor-install");
 
-    if source_dir.exists() {
-        run(Command::new("git")
-            .arg("-C")
-            .arg(&source_dir)
-            .arg("pull")
-            .arg("--ff-only"));
-    } else {
+    if !source_dir.exists() {
         run(Command::new("git")
             .arg("clone")
             .arg("--depth")

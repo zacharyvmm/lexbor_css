@@ -24,7 +24,7 @@ pub struct StyleSheet<'a> {
 
 impl<'a> StyleSheet<'a> {
     /// Parse a CSS string into a stylesheet.
-    pub fn parse(doc: &'a HtmlDocument, css: &str) -> Result<Self, Error> {
+    pub fn parse(_doc: &'a HtmlDocument, css: &str) -> Result<Self, Error> {
         unsafe {
             let parser = lxb_css_parser_create();
             if parser.is_null() {
